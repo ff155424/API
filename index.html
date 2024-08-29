@@ -8,15 +8,28 @@
         body {
             font-family: Arial, sans-serif;
             margin: 50px;
+            background: linear-gradient(45deg, #00c6ff, #0072ff);
+            background-size: 400% 400%;
+            animation: gradientAnimation 10s ease infinite;
+            overflow: hidden; /* Verhindert, dass die Partikel über die Seite hinausgehen */
+        }
+
+        @keyframes gradientAnimation {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
         }
 
         .container {
             max-width: 400px;
             margin: 0 auto;
             padding: 20px;
-            border: 1px solid #ccc;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border: 5px solid #007BFF;
+            border-radius: 20px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            background-color: #ffffffcc;
+            position: relative;
+            z-index: 10; /* Damit der Container über den Partikeln liegt */
         }
 
         .form-group {
@@ -27,14 +40,15 @@
             display: block;
             margin-bottom: 5px;
             font-weight: bold;
+            color: #333;
         }
 
         input, select {
             width: 100%;
             padding: 8px;
             box-sizing: border-box;
-            border-radius: 5px;
-            border: 1px solid #ccc;
+            border-radius: 10px;
+            border: 2px solid #007BFF;
         }
 
         button {
@@ -42,24 +56,74 @@
             color: #fff;
             padding: 10px 15px;
             border: none;
-            border-radius: 5px;
+            border-radius: 10px;
             cursor: pointer;
             width: 100%;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: background-color 0.3s ease, transform 0.2s ease;
         }
 
         button:hover {
             background-color: #0056b3;
+            transform: scale(1.1);
         }
 
         #result {
             margin-top: 20px;
             font-size: 1.2em;
             font-weight: bold;
+            color: #333;
+        }
+
+        .logo {
+            display: block;
+            margin: 0 auto 20px;
+            width: 100%;
+            max-width: 200px;
+        }
+
+        /* Partikel-Animation */
+        .particle {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background-color: #cc00cc;
+            border-radius: 50%;
+            opacity: 0;
+            animation: particleAnimation 5s ease-in-out infinite;
+            filter: blur(5px); /* Verleiht den Partikeln ein weicheres Aussehen */
+        }
+
+        @keyframes particleAnimation {
+            0% {
+                opacity: 0;
+                transform: translate(0, 0) scale(0.5);
+            }
+            50% {
+                opacity: 1;
+                transform: translate(calc(100vw * var(--x)), calc(100vh * var(--y))) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(calc(100vw * var(--x)), calc(100vh * var(--y))) scale(0.5);
+            }
         }
     </style>
 </head>
 <body>
+    <!-- Partikel im Hintergrund -->
+    <div class="particle" style="--x: 0.1; --y: 0.2; animation-delay: 0s;"></div>
+    <div class="particle" style="--x: 0.3; --y: 0.7; animation-delay: 1s;"></div>
+    <div class="particle" style="--x: 0.5; --y: 0.4; animation-delay: 2s;"></div>
+    <div class="particle" style="--x: 0.8; --y: 0.3; animation-delay: 1.5s;"></div>
+    <div class="particle" style="--x: 0.6; --y: 0.8; animation-delay: 0.5s;"></div>
+
     <div class="container">
+        <!-- Bild hinzufügen -->
+        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQXrz0jD6M7bhujyUS2etmCYXTxblUH3MQZkA&s" alt="Logo" class="logo">
+
         <h1>Währungsumrechner</h1>
         <div class="form-group">
             <label for="amount">Betrag in EUR:</label>
@@ -67,28 +131,51 @@
         </div>
         <div class="form-group">
             <label for="currency">Zielwährung:</label>
-            <select id="currency">
-                <option value="USD">USD</option>
-                <option value="GBP">GBP</option>
-                <option value="JPY">JPY</option>
-                <!-- Weitere Währungen hinzufügen, falls gewünscht -->
-            </select>
+            <select id="currency"></select>
         </div>
         <button id="convert">Umrechnen</button>
         <div id="result"></div>
     </div>
 
     <script>
+        // Funktion zum Laden der Währungen
+        function loadCurrencies() {
+            fetch('https://api.frankfurter.app/currencies')
+                .then(response => response.json())
+                .then(data => {
+                    let currencySelect = document.getElementById('currency');
+                    for (const [currencyCode, currencyName] of Object.entries(data)) {
+                        let option = document.createElement('option');
+                        option.value = currencyCode;
+                        option.text = `${currencyCode} - ${currencyName}`;
+                        currencySelect.appendChild(option);
+                    }
+                })
+                .catch(error => console.error('Fehler beim Laden der Währungen:', error));
+        }
+
+        // Währungen beim Laden der Seite laden
+        document.addEventListener('DOMContentLoaded', loadCurrencies);
+
         document.getElementById('convert').addEventListener('click', function() {
             let amount = document.getElementById('amount').value;
             let currency = document.getElementById('currency').value;
 
             fetch(`https://api.frankfurter.app/latest?amount=${amount}&to=${currency}`)
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('result').innerText = `${amount} EUR sind derzeit ${data.rates[currency]} ${currency}`;
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Netzwerkantwort war nicht in Ordnung.');
+                    }
+                    return response.json();
                 })
-                .catch(error => console.error('Fehler:', error));
+                .then(data => {
+                    let result = data.rates[currency].toFixed(2);
+                    document.getElementById('result').innerText = `${amount} EUR sind derzeit ${result} ${currency}`;
+                })
+                .catch(error => {
+                    document.getElementById('result').innerText = 'Es gab ein Problem bei der Umrechnung. Bitte versuchen Sie es später erneut.';
+                    console.error('Fehler:', error);
+                });
         });
     </script>
 </body>
